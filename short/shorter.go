@@ -18,7 +18,6 @@ import (
 )
 
 var counterKey = []byte("**global:count**")
-var hitKey = "**hit**"
 var writeOpt = &db.WriteOptions{Sync: true}
 
 type Shortened struct {
@@ -104,62 +103,63 @@ func newShort(w http.ResponseWriter, r *http.Request, ldb *leveldb.DB) {
 	}
 }
 
+func encodeShortened(s Shortened) []byte {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	enc.Encode(s)
+	return buf.Bytes()
+}
+
+func decodeShortened(raw []byte) (*Shortened, error) {
+	buf := bytes.NewBuffer([]byte(raw))
+	dec := gob.NewDecoder(buf)
+	s := new(Shortened)
+	err := dec.Decode(s)
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
 func LongURL(short string, ldb *leveldb.DB) (*Shortened, error) {
 	b, err := ldb.Get([]byte(short), nil)
 	if err != nil {
 		return nil, err
 	}
-	buf := bytes.NewBuffer([]byte(b))
-	dec := gob.NewDecoder(buf)
-	s := new(Shortened)
-	err = dec.Decode(s)
-	if err != nil {
-		return nil, err
-	}
-	countVal, err := ldb.Get([]byte(hitKey+short), nil)
-	if err != db.ErrNotFound && err != nil {
-		return nil, err
-	}
-	s.HitCount, _ = strconv.Atoi(string(countVal))
-	return s, nil
+	return decodeShortened(b)
 }
 
 func saveShortened(s Shortened, ldb *leveldb.DB) error {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	if err := enc.Encode(s); err != nil {
-		log.Println("[ERROR]: " + err.Error())
-		return err
-	}
-	return ldb.Set([]byte(s.Short), buf.Bytes(), writeOpt)
+	return ldb.Set([]byte(s.Short), encodeShortened(s), writeOpt)
 }
 
 func countHits(ldb *leveldb.DB) {
 	var key string
 	for {
-		var count int
 		key = <-hits
-		v, err := ldb.Get([]byte(hitKey+key), nil)
+		b, err := ldb.Get([]byte(key), nil)
+
 		if err == db.ErrNotFound {
-			log.Println("[ERROR]: Count not found for key")
-			count = 1
+			log.Println("[ERROR]: Count not found for key key:" + key)
+			continue
 		} else if err != nil {
 			log.Println("[ERROR]: Failed to retrieve hitkey err:" + err.Error())
-			count = 0
-		} else {
-			count, err := strconv.Atoi(string(v))
-			if err != nil {
-				log.Println("[ERROR]: Could not convert from string err:" + err.Error())
-			}
-			count += 1
+			continue
 		}
-		err = ldb.Set([]byte(hitKey+key), []byte(strconv.Itoa(count)), writeOpt)
+
+		s, err := decodeShortened(b)
+		if err != nil {
+			log.Println("[ERROR]: Could not convert from string err:" + err.Error())
+			continue
+		}
+		s.HitCount += 1
+
+		err = ldb.Set([]byte(key), encodeShortened(*s), writeOpt)
 		if err != nil {
 			log.Println("[ERROR]: Failed to write hitkey err:" + err.Error())
 			continue
 		}
-		log.Println("[HIT]: key=" + key + " count=" + string(count))
-		log.Println("[INFO]: wrote hitkey " + key)
+		log.Printf("[HIT]: key=%s count=%d", key, s.HitCount)
 	}
 }
 
