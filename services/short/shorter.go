@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"flag"
 	"github.com/codegangsta/martini"
-	"github.com/ryansb/legowebservices/util"
+	"github.com/ryansb/legowebservices/encoding/base62"
 	"io/ioutil"
 	"log"
 	"net/http"

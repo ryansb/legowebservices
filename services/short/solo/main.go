@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/ryansb/legowebservices/short"
+	"github.com/ryansb/legowebservices/services/short"
 	"net/http"
 )
 
