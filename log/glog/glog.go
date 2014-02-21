@@ -521,14 +521,13 @@ where the fields are defined as follows:
 	L                A single character, representing the log level (eg 'I' for INFO)
 	mm               The month (zero padded; ie May is '05')
 	dd               The day (zero padded)
-	hh:mm:ss.uuuuuu  Time in hours, minutes and fractional seconds
-	threadid         The space-padded thread ID as returned by GetTID()
+	hh:mm:ss.uuuu    Time in hours, minutes and fractional seconds
 	file             The file name
 	line             The line number
 	msg              The user-supplied message
 */
 func (l *loggingT) header(s severity) *buffer {
-	// Lmmdd hh:mm:ss.uuuuuu threadid file:line]
+	// L[mm/dd] hh:mm:ss.uuuu file:line:
 	now := timeNow()
 	_, file, line, ok := runtime.Caller(3) // It's always the same number of frames to the user's call.
 	if !ok {
@@ -553,24 +552,25 @@ func (l *loggingT) header(s severity) *buffer {
 	_, month, day := now.Date()
 	hour, minute, second := now.Clock()
 	buf.tmp[0] = severityChar[s]
-	buf.twoDigits(1, int(month))
-	buf.twoDigits(3, day)
-	buf.tmp[5] = ' '
-	buf.twoDigits(6, hour)
-	buf.tmp[8] = ':'
-	buf.twoDigits(9, minute)
+	buf.tmp[1] = '['
+	buf.twoDigits(2, int(month))
+	buf.tmp[4] = '/'
+	buf.twoDigits(5, day)
+	buf.tmp[7] = ']'
+	buf.tmp[8] = ' '
+	buf.twoDigits(9, hour)
 	buf.tmp[11] = ':'
-	buf.twoDigits(12, second)
-	buf.tmp[14] = '.'
-	buf.nDigits(6, 15, now.Nanosecond()/1000)
-	buf.tmp[21] = ' '
-	buf.nDigits(5, 22, pid) // TODO: should be TID
-	buf.tmp[27] = ' '
-	buf.Write(buf.tmp[:28])
+	buf.twoDigits(12, minute)
+	buf.tmp[14] = ':'
+	buf.twoDigits(15, second)
+	buf.tmp[17] = '.'
+	buf.nDigits(4, 18, now.Nanosecond()/1000)
+	buf.tmp[22] = ' '
+	buf.Write(buf.tmp[:23])
 	buf.WriteString(file)
 	buf.tmp[0] = ':'
 	n := buf.someDigits(1, line)
-	buf.tmp[n+1] = ']'
+	buf.tmp[n+1] = ':'
 	buf.tmp[n+2] = ' '
 	buf.Write(buf.tmp[:n+3])
 	return buf
