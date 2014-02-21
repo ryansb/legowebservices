@@ -225,10 +225,14 @@ func (l *Level) Set(value string) error {
 	if err != nil {
 		return err
 	}
+	l.setInt(v)
+	return nil
+}
+
+func (l *Level) setInt(v int) {
 	logging.mu.Lock()
 	defer logging.mu.Unlock()
 	logging.setVState(Level(v), logging.vmodule.filter, false)
-	return nil
 }
 
 // moduleSpec represents the setting of the -vmodule flag.
