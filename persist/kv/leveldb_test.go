@@ -40,8 +40,8 @@ func TestLeveldbGet(t *testing.T) {
 
 func TestLeveldbIncrement(t *testing.T) {
 	ldbe := NewLevelDBEngine("test4.ldb", &db.Options{VerifyChecksums: true}, &db.WriteOptions{Sync: true}, nil)
-	ldbe.Increment("testincrementer")
-	if ldbe.GetCounter("testincrementer") != 1 {
+	value := ldbe.Increment("testincrementer")
+	if ldbe.GetCounter("testincrementer") != 1 || value != 1 {
 		t.Error("Failed to increment counter")
 	}
 	cleanup("test4.ldb")
@@ -49,8 +49,8 @@ func TestLeveldbIncrement(t *testing.T) {
 
 func TestLeveldbDecrement(t *testing.T) {
 	ldbe := NewLevelDBEngine("test5.ldb", &db.Options{VerifyChecksums: true}, &db.WriteOptions{Sync: true}, nil)
-	ldbe.Decrement("testdecrementer")
-	if ldbe.GetCounter("testdecrementer") != -1 {
+	value := ldbe.Decrement("testdecrementer")
+	if ldbe.GetCounter("testdecrementer") != -1 || value != -1 {
 		t.Error("Failed to increment counter")
 	}
 	cleanup("test5.ldb")

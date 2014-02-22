@@ -12,34 +12,35 @@ import (
 // Implemented the KVEngine interface
 // This one is just for a local leveldb database
 type LevelDBEngine struct {
-	LevelDB         *leveldb.DB
-	WriteOpts       *db.WriteOptions
-	ReadOpts        *db.ReadOptions
-	BatchSetChan    chan map[string][]byte
-	BatchDeleteChan chan []byte
-	CountMutex      *sync.Mutex
+	levelDB         *leveldb.DB
+	writeOpts       *db.WriteOptions
+	readOpts        *db.ReadOptions
+	batchSetChan    chan map[string][]byte
+	batchDeleteChan chan []byte
+	countMutex      *sync.Mutex
 }
 
 // Create a new LevelDBEngine with the given file and options
 func NewLevelDBEngine(file string, options *db.Options, woptions *db.WriteOptions, roptions *db.ReadOptions) *LevelDBEngine {
-	ldbe := new(LevelDBEngine)
-	var err error
-	ldbe.LevelDB, err = leveldb.Open(file, options)
+	levelDB, err := leveldb.Open(file, options)
 	if err != nil {
 		panic(err)
 	}
-	ldbe.WriteOpts = woptions
-	ldbe.ReadOpts = roptions
-	ldbe.BatchSetChan = make(chan map[string][]byte, 10)
-	ldbe.BatchDeleteChan = make(chan []byte, 10)
-	ldbe.CountMutex = new(sync.Mutex)
+	ldbe := &LevelDBEngine{
+		levelDB:         levelDB,
+		writeOpts:       woptions,
+		readOpts:        roptions,
+		batchSetChan:    make(chan map[string][]byte, 10),
+		batchDeleteChan: make(chan []byte, 10),
+		countMutex:      new(sync.Mutex),
+	}
 	go ldbe.BatchSync()
 	return ldbe
 }
 
 // Set a key in leveldb returns true if the key has been set
 func (ldbe *LevelDBEngine) Set(key string, value []byte) bool {
-	err := ldbe.LevelDB.Set([]byte(key), value, ldbe.WriteOpts)
+	err := ldbe.levelDB.Set([]byte(key), value, ldbe.writeOpts)
 	if err != nil {
 		log.Warningf("Failed to set '%s': %s", key, err)
 		return false
@@ -49,7 +50,7 @@ func (ldbe *LevelDBEngine) Set(key string, value []byte) bool {
 
 // Get a key from leveldb
 func (ldbe *LevelDBEngine) Get(key string) []byte {
-	value, err := ldbe.LevelDB.Get([]byte(key), ldbe.ReadOpts)
+	value, err := ldbe.levelDB.Get([]byte(key), ldbe.readOpts)
 	if err != nil {
 		log.Infof("Failed to get '%s': %s", key, err)
 	}
@@ -59,7 +60,7 @@ func (ldbe *LevelDBEngine) Get(key string) []byte {
 // Delete a key from leveldb
 // Returns a bool is the key is successfully deleted
 func (ldbe *LevelDBEngine) Delete(key string) bool {
-	err := ldbe.LevelDB.Delete([]byte(key), ldbe.WriteOpts)
+	err := ldbe.levelDB.Delete([]byte(key), ldbe.writeOpts)
 	if err != nil {
 		log.Warningf("Failed to delete '%s': %s", key, err)
 		return false
@@ -67,7 +68,7 @@ func (ldbe *LevelDBEngine) Delete(key string) bool {
 	return true
 }
 
-func (ldbe *LevelDBEngine) Find(key string) bool {
+func (ldbe *LevelDBEngine) Find(key string) []byte {
 	// uhhhh, wat
 	panic("unimplemented")
 }
@@ -75,13 +76,13 @@ func (ldbe *LevelDBEngine) Find(key string) bool {
 // Stage a delete operation and put it into the batch channel
 // It will be added to a batch and eventually synced to leveldb
 func (ldbe *LevelDBEngine) EnqueueDelete(key string) {
-	ldbe.BatchDeleteChan <- []byte(key)
+	ldbe.batchDeleteChan <- []byte(key)
 }
 
 // Stage a set operation and put it into the batch channel
 // It will be added to a batch and eventually synced to leveldb
 func (ldbe *LevelDBEngine) EnqueueSet(key string, value []byte) {
-	ldbe.BatchSetChan <- map[string][]byte{key: value}
+	ldbe.batchSetChan <- map[string][]byte{key: value}
 }
 
 // Run as a go routine in order to aggregate BatchSet and BatchDelete operations
@@ -93,7 +94,7 @@ func (ldbe *LevelDBEngine) BatchSync() {
 
 	// Our Flush function which writes out batch out to leveldb
 	flush := func() {
-		err := ldbe.LevelDB.Apply(batch, ldbe.WriteOpts)
+		err := ldbe.levelDB.Apply(batch, ldbe.writeOpts)
 		if err != nil {
 			// If we fail we don't reset our batch or op counter
 			// that way we retry if we fail
@@ -106,11 +107,11 @@ func (ldbe *LevelDBEngine) BatchSync() {
 	for {
 		select {
 		// Grab a BatchDelete Operation from the channel
-		case delKey := <-ldbe.BatchDeleteChan:
+		case delKey := <-ldbe.batchDeleteChan:
 			batch.Delete(delKey)
 			numOps += 1
 			// Grab a set operation from the channe;
-		case setMap := <-ldbe.BatchSetChan:
+		case setMap := <-ldbe.batchSetChan:
 			for key, val := range setMap {
 				batch.Set([]byte(key), val)
 			}
@@ -136,9 +137,9 @@ func (ldbe *LevelDBEngine) GetCounter(key string) int64 {
 
 // "Atomic" increment of a counter key in leveldb
 // It is surrounded by a mutex so only one routine can incr/decr at a time
-func (ldbe *LevelDBEngine) atomicAdd(key string, addBy int64) {
-	ldbe.CountMutex.Lock()
-	defer ldbe.CountMutex.Unlock()
+func (ldbe *LevelDBEngine) atomicAdd(key string, addBy int64) int64 {
+	ldbe.countMutex.Lock()
+	defer ldbe.countMutex.Unlock()
 	count := ldbe.GetCounter(key)
 	count += addBy
 	countBytes := make([]byte, 8)
@@ -149,13 +150,14 @@ func (ldbe *LevelDBEngine) atomicAdd(key string, addBy int64) {
 		if !ldbe.Set(key, countBytes) {
 		}
 	}
+	return count
 }
-func (ldbe *LevelDBEngine) Increment(key string) {
-	ldbe.atomicAdd(key, 1)
+func (ldbe *LevelDBEngine) Increment(key string) int64 {
+	return ldbe.atomicAdd(key, 1)
 }
 
 // "Atomic" decrement of a counter key in leveldb
 // It is surrounded by a mutex so only one routine can incr/decr at a time
-func (ldbe *LevelDBEngine) Decrement(key string) {
-	ldbe.atomicAdd(key, -1)
+func (ldbe *LevelDBEngine) Decrement(key string) int64 {
+	return ldbe.atomicAdd(key, -1)
 }

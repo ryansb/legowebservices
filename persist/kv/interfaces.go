@@ -8,7 +8,7 @@ type KVEngine interface {
 	Delete(key string) bool
 	EnqueueDelete(key string)
 	Find(key string) []byte
-	GetCounter(key string) int
-	Increment(key string) bool
-	Decrement(key string) bool
+	GetCounter(key string) int64
+	Increment(key string) int64
+	Decrement(key string) int64
 }
