@@ -33,6 +33,7 @@ func NewLevelDBEngine(file string, options *db.Options, woptions *db.WriteOption
 	ldbe.BatchSetChan = make(chan map[string][]byte, 10)
 	ldbe.BatchDeleteChan = make(chan []byte, 10)
 	ldbe.CountMutex = new(sync.Mutex)
+	go ldbe.BatchSync()
 	return ldbe
 }
 

@@ -3,6 +3,7 @@ package kv
 import "code.google.com/p/leveldb-go/leveldb/db"
 import "testing"
 import "os"
+import "time"
 
 func cleanup(dbname string) {
 	os.RemoveAll(dbname)
@@ -53,4 +54,36 @@ func TestLeveldbDecrement(t *testing.T) {
 		t.Error("Failed to increment counter")
 	}
 	cleanup("test5.ldb")
+}
+
+func TestLeveldbBatchSet(t *testing.T) {
+	ldbe := NewLevelDBEngine("test6.ldb", &db.Options{VerifyChecksums: true}, &db.WriteOptions{Sync: true}, nil)
+	for x := 0; x < 10; x++ {
+		ldbe.BatchSet(string(x), []byte(string(x)))
+	}
+	time.Sleep(10 * time.Second)
+	for x := 0; x < 10; x++ {
+		if string(ldbe.Get(string(x))) != string(x) {
+			t.Error("RuhRoh Shaggy, didn't get the string we expected")
+		}
+	}
+	cleanup("test6.ldb")
+}
+
+func TestLeveldbBatchDelete(t *testing.T) {
+	ldbe := NewLevelDBEngine("test7.ldb", &db.Options{VerifyChecksums: true}, &db.WriteOptions{Sync: true}, nil)
+	for x := 0; x < 10; x++ {
+		ldbe.BatchSet(string(x), []byte(string(x)))
+	}
+	time.Sleep(10 * time.Second)
+	for x := 0; x < 10; x++ {
+		ldbe.BatchDelete(string(x))
+	}
+	time.Sleep(10 * time.Second)
+	for x := 0; x < 10; x++ {
+		if string(ldbe.Get(string(x))) == string(x) {
+			t.Error("Zoinks scooby, that string equality is ghostly")
+		}
+	}
+	cleanup("test7.ldb")
 }
