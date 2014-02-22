@@ -1,4 +1,4 @@
-package glog
+package log
 
 func SetV(v int) {
 	if v < 0 {
