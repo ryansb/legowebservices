@@ -74,13 +74,13 @@ func (ldbe *LevelDBEngine) Find(key string) bool {
 
 // Stage a delete operation and put it into the batch channel
 // It will be added to a batch and eventually synced to leveldb
-func (ldbe *LevelDBEngine) BatchDelete(key string) {
+func (ldbe *LevelDBEngine) EnqueueDelete(key string) {
 	ldbe.BatchDeleteChan <- []byte(key)
 }
 
 // Stage a set operation and put it into the batch channel
 // It will be added to a batch and eventually synced to leveldb
-func (ldbe *LevelDBEngine) BatchSet(key string, value []byte) {
+func (ldbe *LevelDBEngine) EnqueueSet(key string, value []byte) {
 	ldbe.BatchSetChan <- map[string][]byte{key: value}
 }
 
@@ -116,7 +116,7 @@ func (ldbe *LevelDBEngine) BatchSync() {
 			}
 			numOps += 1
 			// Time out after 10 seconds and flush our batch
-		case <-time.Tick(time.Second * 10):
+		case <-time.After(time.Second * 10):
 			flush()
 		}
 		// Flush if we have >= 10 operations in our batch
@@ -139,6 +139,7 @@ func (ldbe *LevelDBEngine) GetCounter(key string) int64 {
 // It is surrounded by a mutex so only one routine can incr/decr at a time
 func (ldbe *LevelDBEngine) atomicAdd(key string, addBy int64) {
 	ldbe.CountMutex.Lock()
+	defer ldbe.CountMutex.Unlock()
 	count := ldbe.GetCounter(key)
 	count += addBy
 	countBytes := make([]byte, 8)
@@ -150,7 +151,6 @@ func (ldbe *LevelDBEngine) atomicAdd(key string, addBy int64) {
 			log.Print("Failed to atomic add key")
 		}
 	}
-	ldbe.CountMutex.Unlock()
 }
 func (ldbe *LevelDBEngine) Increment(key string) {
 	ldbe.atomicAdd(key, 1)

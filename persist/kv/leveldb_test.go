@@ -56,10 +56,10 @@ func TestLeveldbDecrement(t *testing.T) {
 	cleanup("test5.ldb")
 }
 
-func TestLeveldbBatchSet(t *testing.T) {
+func TestLeveldbEnqueueSet(t *testing.T) {
 	ldbe := NewLevelDBEngine("test6.ldb", &db.Options{VerifyChecksums: true}, &db.WriteOptions{Sync: true}, nil)
 	for x := 0; x < 10; x++ {
-		ldbe.BatchSet(string(x), []byte(string(x)))
+		ldbe.EnqueueSet(string(x), []byte(string(x)))
 	}
 	time.Sleep(10 * time.Second)
 	for x := 0; x < 10; x++ {
@@ -70,14 +70,14 @@ func TestLeveldbBatchSet(t *testing.T) {
 	cleanup("test6.ldb")
 }
 
-func TestLeveldbBatchDelete(t *testing.T) {
+func TestLeveldbEnqueueDelete(t *testing.T) {
 	ldbe := NewLevelDBEngine("test7.ldb", &db.Options{VerifyChecksums: true}, &db.WriteOptions{Sync: true}, nil)
 	for x := 0; x < 10; x++ {
-		ldbe.BatchSet(string(x), []byte(string(x)))
+		ldbe.EnqueueSet(string(x), []byte(string(x)))
 	}
 	time.Sleep(10 * time.Second)
 	for x := 0; x < 10; x++ {
-		ldbe.BatchDelete(string(x))
+		ldbe.EnqueueDelete(string(x))
 	}
 	time.Sleep(10 * time.Second)
 	for x := 0; x < 10; x++ {
