@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/ryansb/legowebservices/log"
 	"github.com/ryansb/legowebservices/services/short"
 	"net/http"
 )
@@ -9,6 +10,7 @@ import (
 var port = flag.String("p", ":3000", "Port you want to listen on, defaults to 3000")
 
 func main() {
+	log.DevelDefaults()
 	flag.Parse()
 	m := short.NewShortener()
 	http.ListenAndServe(*port, m)
