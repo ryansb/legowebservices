@@ -4,7 +4,7 @@ import (
 	"code.google.com/p/leveldb-go/leveldb"
 	"code.google.com/p/leveldb-go/leveldb/db"
 	"encoding/binary"
-	"log"
+	"github.com/ryansb/legowebservices/log"
 	"sync"
 	"time"
 )
@@ -41,7 +41,7 @@ func NewLevelDBEngine(file string, options *db.Options, woptions *db.WriteOption
 func (ldbe *LevelDBEngine) Set(key string, value []byte) bool {
 	err := ldbe.LevelDB.Set([]byte(key), value, ldbe.WriteOpts)
 	if err != nil {
-		log.Print("Failed to set '", key, "':", err)
+		log.Warningf("Failed to set '%s': %s", key, err)
 		return false
 	}
 	return true
@@ -51,7 +51,7 @@ func (ldbe *LevelDBEngine) Set(key string, value []byte) bool {
 func (ldbe *LevelDBEngine) Get(key string) []byte {
 	value, err := ldbe.LevelDB.Get([]byte(key), ldbe.ReadOpts)
 	if err != nil {
-		log.Print("Failed to get '", key, "': ", err)
+		log.Infof("Failed to get '%s': %s", key, err)
 	}
 	return value
 }
@@ -61,7 +61,7 @@ func (ldbe *LevelDBEngine) Get(key string) []byte {
 func (ldbe *LevelDBEngine) Delete(key string) bool {
 	err := ldbe.LevelDB.Delete([]byte(key), ldbe.WriteOpts)
 	if err != nil {
-		log.Print("Failed to delete '", key, "': ", err)
+		log.Warningf("Failed to delete '%s': %s", key, err)
 		return false
 	}
 	return true
@@ -97,7 +97,7 @@ func (ldbe *LevelDBEngine) BatchSync() {
 		if err != nil {
 			// If we fail we don't reset our batch or op counter
 			// that way we retry if we fail
-			log.Print("Failed to sync batch data:", err)
+			log.Errorf("Failed to sync batch data: %s", err)
 			return
 		}
 		batch = leveldb.Batch{}
@@ -129,7 +129,6 @@ func (ldbe *LevelDBEngine) BatchSync() {
 func (ldbe *LevelDBEngine) GetCounter(key string) int64 {
 	count, numRead := binary.Varint(ldbe.Get(key))
 	if numRead <= 0 {
-		log.Print("Failed to decode counter value")
 		count = 0
 	}
 	return count
@@ -145,10 +144,9 @@ func (ldbe *LevelDBEngine) atomicAdd(key string, addBy int64) {
 	countBytes := make([]byte, 8)
 	numWritten := binary.PutVarint(countBytes, count)
 	if numWritten <= 0 {
-		log.Print("Failed to encode counter to binary")
+		log.Errorf("Failed to encode counter '%s' to binary", count)
 	} else {
 		if !ldbe.Set(key, countBytes) {
-			log.Print("Failed to atomic add key")
 		}
 	}
 }
