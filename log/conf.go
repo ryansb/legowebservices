@@ -14,3 +14,13 @@ func SetVModule(vmod string) error {
 func UseStderr(use bool) {
 	logging.toStderr = true
 }
+
+func DevelDefaults() {
+	UseStderr(true)
+	SetV(5)
+}
+
+func ProdDefaults() {
+	UseStderr(false)
+	SetV(2)
+}
