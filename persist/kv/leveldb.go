@@ -23,9 +23,7 @@ type LevelDBEngine struct {
 // Create a new LevelDBEngine with the given file and options
 func NewLevelDBEngine(file string, options *db.Options, woptions *db.WriteOptions, roptions *db.ReadOptions) *LevelDBEngine {
 	levelDB, err := leveldb.Open(file, options)
-	if err != nil {
-		panic(err)
-	}
+	log.FatalIfErr(err, "Failure opening leveldb file err:")
 	ldbe := &LevelDBEngine{
 		levelDB:         levelDB,
 		writeOpts:       woptions,
@@ -76,12 +74,14 @@ func (ldbe *LevelDBEngine) Find(key string) []byte {
 // Stage a delete operation and put it into the batch channel
 // It will be added to a batch and eventually synced to leveldb
 func (ldbe *LevelDBEngine) EnqueueDelete(key string) {
+	log.V(5).Info("Enqueued delete for key:" + key)
 	ldbe.batchDeleteChan <- []byte(key)
 }
 
 // Stage a set operation and put it into the batch channel
 // It will be added to a batch and eventually synced to leveldb
 func (ldbe *LevelDBEngine) EnqueueSet(key string, value []byte) {
+	log.V(5).Info("Enqueued write for key:" + key)
 	ldbe.batchSetChan <- map[string][]byte{key: value}
 }
 
@@ -101,6 +101,7 @@ func (ldbe *LevelDBEngine) BatchSync() {
 			log.Errorf("Failed to sync batch data: %s", err)
 			return
 		}
+		log.V(4).Info("Flushed batch of %d writes/deletes", numOps)
 		batch = leveldb.Batch{}
 		numOps = 0
 	}
@@ -118,7 +119,10 @@ func (ldbe *LevelDBEngine) BatchSync() {
 			numOps += 1
 			// Time out after 10 seconds and flush our batch
 		case <-time.After(time.Second * 10):
-			flush()
+			if numOps > 0 {
+				log.V(5).Info("Flushing %d writes after timeout", numOps)
+				flush()
+			}
 		}
 		// Flush if we have >= 10 operations in our batch
 		if numOps >= 10 {
@@ -139,7 +143,11 @@ func (ldbe *LevelDBEngine) GetCounter(key string) int64 {
 // It is surrounded by a mutex so only one routine can incr/decr at a time
 func (ldbe *LevelDBEngine) atomicAdd(key string, addBy int64) int64 {
 	ldbe.countMutex.Lock()
+	log.V(4).Info("Got atomicAdd lock for key:%s adding:%d", key, addBy)
+
 	defer ldbe.countMutex.Unlock()
+	defer log.V(4).Info("Returned atomicAdd lock for key:%s", key)
+
 	count := ldbe.GetCounter(key)
 	count += addBy
 	countBytes := make([]byte, 8)
