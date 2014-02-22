@@ -22,5 +22,5 @@ func DevelDefaults() {
 
 func ProdDefaults() {
 	UseStderr(false)
-	SetV(2)
+	SetV(1)
 }
