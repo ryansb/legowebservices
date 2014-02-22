@@ -59,14 +59,10 @@ func incrCount(ldb *leveldb.DB) int64 {
 func newShort(w http.ResponseWriter, r *http.Request, ldb *leveldb.DB) {
 	defer r.Body.Close()
 	raw, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Fatal("Failure reading request err:" + err.Error())
-	}
+	log.FatalIfErr(err, "Failure reading request err:")
 	var v map[string]interface{}
 	err = json.Unmarshal(raw, &v)
-	if err != nil {
-		log.Fatal("[ERROR]: Failure decoding JSON err:" + err.Error() + " json:" + string(raw))
-	}
+	log.FatalIfErr(err, "Failure decoding JSON json:"+string(raw)+" err:")
 	if dest, ok := v["url"]; ok {
 		shortSlug := base62.EncodeInt(incrCount(ldb))
 		parsed, err := url.Parse(dest.(string))
@@ -83,9 +79,7 @@ func newShort(w http.ResponseWriter, r *http.Request, ldb *leveldb.DB) {
 		}
 
 		err = saveShortened(s, ldb)
-		if err != nil {
-			log.Fatal("Failure saving URL err:" + err.Error())
-		}
+		log.FatalIfErr(err, "Failure saving URL err:")
 		out, _ := json.Marshal(map[string]interface{}{
 			"Short":    s.Short,
 			"Original": s.Original,
