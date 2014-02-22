@@ -9,8 +9,8 @@ import (
 	"flag"
 	"github.com/codegangsta/martini"
 	"github.com/ryansb/legowebservices/encoding/base62"
+	"github.com/ryansb/legowebservices/log"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -38,13 +38,13 @@ func incrCount(ldb *leveldb.DB) int64 {
 	if err == db.ErrNotFound {
 		count = 0
 	} else if err != nil {
-		log.Println("[ERROR]: Failure getting counter err:" + err.Error())
+		log.Error("Failure getting counter err:" + err.Error())
 		panic(err)
 	} else {
 		c, err := strconv.Atoi(string(raw))
 		count = int64(c)
 		if err != nil {
-			log.Println("[ERROR]: Failure converting count to int64")
+			log.Error("Failure converting count to int64")
 			panic(err)
 		}
 	}
@@ -60,20 +60,18 @@ func newShort(w http.ResponseWriter, r *http.Request, ldb *leveldb.DB) {
 	defer r.Body.Close()
 	raw, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Println("[ERROR]: Failure reading request err:" + err.Error())
-		panic(err)
+		log.Fatal("Failure reading request err:" + err.Error())
 	}
 	var v map[string]interface{}
 	err = json.Unmarshal(raw, &v)
 	if err != nil {
-		log.Println("[ERROR]: Failure decoding JSON err:" + err.Error() + " json:" + string(raw))
-		panic(err)
+		log.Fatal("[ERROR]: Failure decoding JSON err:" + err.Error() + " json:" + string(raw))
 	}
 	if dest, ok := v["url"]; ok {
 		shortSlug := base62.EncodeInt(incrCount(ldb))
 		parsed, err := url.Parse(dest.(string))
 		if err != nil {
-			log.Println("[WARNING]: malformed URL:" + dest.(string) + " err:" + err.Error())
+			log.Warning("Malformed URL:" + dest.(string) + " err:" + err.Error())
 		}
 		if parsed.Scheme == "" {
 			dest = "http://" + dest.(string)
@@ -86,8 +84,7 @@ func newShort(w http.ResponseWriter, r *http.Request, ldb *leveldb.DB) {
 
 		err = saveShortened(s, ldb)
 		if err != nil {
-			log.Println("[ERROR]: Failure saving URL err:" + err.Error())
-			panic(err)
+			log.Fatal("Failure saving URL err:" + err.Error())
 		}
 		out, _ := json.Marshal(map[string]interface{}{
 			"Short":    s.Short,
@@ -97,7 +94,7 @@ func newShort(w http.ResponseWriter, r *http.Request, ldb *leveldb.DB) {
 		})
 		w.Write(out)
 	} else {
-		log.Println("[NOTICE]: No url field included in JSON")
+		log.Info("No url field included in JSON")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Require 'url' field in request JSON"))
 	}
@@ -140,26 +137,26 @@ func countHits(ldb *leveldb.DB) {
 		b, err := ldb.Get([]byte(key), nil)
 
 		if err == db.ErrNotFound {
-			log.Println("[ERROR]: Count not found for key key:" + key)
+			log.Error("Count not found for key key:" + key)
 			continue
 		} else if err != nil {
-			log.Println("[ERROR]: Failed to retrieve hitkey err:" + err.Error())
+			log.Error("Failed to retrieve hitkey err:" + err.Error())
 			continue
 		}
 
 		s, err := decodeShortened(b)
 		if err != nil {
-			log.Println("[ERROR]: Could not convert from string err:" + err.Error())
+			log.Error("Could not convert from string err:" + err.Error())
 			continue
 		}
 		s.HitCount += 1
 
 		err = ldb.Set([]byte(key), encodeShortened(*s), writeOpt)
 		if err != nil {
-			log.Println("[ERROR]: Failed to write hitkey err:" + err.Error())
+			log.Error("Failed to write hitkey err:" + err.Error())
 			continue
 		}
-		log.Printf("[HIT]: key=%s count=%d", key, s.HitCount)
+		log.V(3).Info("[HIT]: key=%s count=%d", key, s.HitCount)
 	}
 }
 
@@ -169,7 +166,7 @@ func NewShortener() *martini.Martini {
 
 	levelDB, err := leveldb.Open("./lws_short_leveldb", &db.Options{VerifyChecksums: true})
 	if err != nil {
-		log.Println("[ERROR]: " + err.Error())
+		log.Error("Failure opening leveldb err:" + err.Error())
 	}
 	defer levelDB.Close()
 
