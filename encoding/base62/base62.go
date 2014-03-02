@@ -1,41 +1,53 @@
-// heavily influenced by http://golang.org/src/pkg/encoding/base64/base64.go
-
-// Package base62 implements base62 encoding
+// Package base62 implements conversion to and from base62. Useful for url shorteners.
 package base62
 
 import (
+	"bytes"
 	"math"
-	"strings"
 )
 
-var encodeStd2 = [62]string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+// characters used for conversion
+const alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-func EncodeInt(value int64) string {
-	var output string
-	var remainder int64
-	var numberOfCycles int64
-
-	base := int64(62)
-	remainder = value % base
-	output = encodeStd2[remainder]
-	numberOfCycles = int64(math.Floor(float64(value/base))) - 1
-
-	if numberOfCycles >= 0 && numberOfCycles < 62 {
-		output = strings.Join([]string{encodeStd2[numberOfCycles], output}, "")
+// converts number to base62
+func EncodeInt(number int64) string {
+	if number == 0 {
+		return string(alphabet[0])
 	}
 
-	for i := 0; i < 10; i++ {
-		if numberOfCycles < 62 {
-			break
-		}
-		i = 0
-		remainder = numberOfCycles % base
+	chars := make([]byte, 0)
 
-		numberOfCycles = int64(math.Floor(float64(numberOfCycles/base))) - 1
-		output = strings.Join([]string{encodeStd2[remainder], output}, "")
-		if numberOfCycles <= 0 {
-			i = 10
-		}
+	length := int64(len(alphabet))
+
+	for number > 0 {
+		result := number / length
+		remainder := number % length
+		chars = append(chars, alphabet[remainder])
+		number = result
 	}
-	return output
+
+	for i, j := 0, len(chars)-1; i < j; i, j = i+1, j-1 {
+		chars[i], chars[j] = chars[j], chars[i]
+	}
+
+	return string(chars)
+}
+
+// converts base62 token to int
+func DecodeString(token string) int64 {
+	var number int64
+	idx := 0.0
+	chars := []byte(alphabet)
+
+	charsLength := float64(len(chars))
+	tokenLength := float64(len(token))
+
+	for _, c := range []byte(token) {
+		power := tokenLength - (idx + 1)
+		index := bytes.IndexByte(chars, c)
+		number += int64(index * int(math.Pow(charsLength, power)))
+		idx++
+	}
+
+	return number
 }
