@@ -26,21 +26,39 @@ func (q *Query) Regexp(p Path, expr string) *Query {
 
 func (q *Query) All() (ResultSet, error) {
 	r := make(map[uint64]struct{})
-	if err := tiedot.EvalQuery("all", q.col, &r); err != nil {
-		log.Error("Error executing kv.Query.All() err=%s", err.Error())
+	if err := tiedot.EvalQuery(q.q, q.col, &r); err != nil {
+		log.Error("Error executing kv.Query.All() query=%s err=%s", q.JSON(), err.Error())
 		return nil, err
 	}
 	return r, nil
 }
 
+func (q *Query) OneInto(out interface{}) (uint64, error) {
+	r := make(map[uint64]struct{})
+	if err := tiedot.EvalQuery(q.q, q.col, &r); err != nil {
+		log.Errorf("Error executing kv.Query.One() err=%s", err.Error())
+		return 0, err
+	}
+	for k, v := range r {
+		if _, err := q.col.Read(k, out); err != nil {
+			log.Errorf("Failure reading id=%d err=%s", k, err.Error())
+			return 0, err
+		}
+		log.V(2).Infof("Found id=%d val=%v for kv.Query.One()", k, v)
+		return k, nil
+	}
+	log.V(1).Info("Nothing found for query=", q.JSON())
+	return 0, ErrNotFound
+}
+
 func (q *Query) One() (uint64, *struct{}, error) {
 	r := make(map[uint64]struct{})
-	if err := tiedot.EvalQuery("all", q.col, &r); err != nil {
-		log.Error("Error executing kv.Query.One() err=%s", err.Error())
+	if err := tiedot.EvalQuery(q.q, q.col, &r); err != nil {
+		log.Errorf("Error executing kv.Query.One() err=%s", err.Error())
 		return 0, nil, err
 	}
 	for k, v := range r {
-		log.V(2).Info("Found id=%d val=%v for kv.Query.One()", k, v)
+		log.V(2).Infof("Found id=%d val=%v for kv.Query.One()", k, v)
 		return k, &v, nil
 	}
 	log.V(1).Info("Nothing found for query=", q.JSON())

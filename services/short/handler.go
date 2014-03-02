@@ -9,7 +9,8 @@ import (
 	"net/http"
 )
 
-var URLCollection = "short.url"
+var counterCollection = "short.counter"
+var urlCollection = "short.url"
 
 func root(w http.ResponseWriter, r *http.Request) (int, string) {
 	log.V(3).Info("Served Homepage")
@@ -40,7 +41,7 @@ func retrieve(w http.ResponseWriter, r *http.Request, tde *kv.TiedotEngine, para
 
 func remove(w http.ResponseWriter, r *http.Request, tde *kv.TiedotEngine, params martini.Params) (int, []byte) {
 	short := params["short"]
-	_, err := tde.Query(URLCollection).Equals(kv.Path{"Short"}, base62.DecodeString(short)).Delete()
+	_, err := tde.Query(urlCollection).Equals(kv.Path{"Short"}, base62.DecodeString(short)).Delete()
 	if err != nil {
 		log.Error("Failure deleting URL /" + short + " err:" + err.Error())
 		return 500, M{

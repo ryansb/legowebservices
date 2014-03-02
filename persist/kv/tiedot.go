@@ -4,7 +4,6 @@ import (
 	"errors"
 	tiedot "github.com/HouzuoGuo/tiedot/db"
 	"github.com/ryansb/legowebservices/log"
-	. "github.com/ryansb/legowebservices/util/m"
 	"strings"
 )
 
@@ -33,11 +32,22 @@ func (t *TiedotEngine) Query(collectionName string) *Query {
 }
 
 func (t *TiedotEngine) Insert(collectionName string, item Insertable) error {
-	if _, err := t.tiedot.Use(collectionName).Insert(item.ToM()); err != nil {
+	if id, err := t.tiedot.Use(collectionName).Insert(item.ToM()); err != nil {
 		log.Error("Failure inserting item=%s err=%s", item.ToM().JSON(), err.Error())
 		return err
+	} else {
+		log.V(6).Infof("Added item with ID=%d, item=%s", id, item.ToM().JSON())
+		return nil
 	}
-	return nil
+}
+
+func (t *TiedotEngine) Update(collectionName string, id uint64, item Insertable) error {
+	if err := t.tiedot.Use(collectionName).Update(id, item.ToM()); err != nil {
+		log.Error("Failure updating item=%s err=%s", item.ToM().JSON(), err.Error())
+		return err
+	} else {
+		return nil
+	}
 }
 
 func (t *TiedotEngine) All(collectionName string) (ResultSet, error) {

@@ -14,3 +14,7 @@ func (d M) JSON() []byte {
 	}
 	return s
 }
+
+func (m M) ToM() M {
+	return m
+}
