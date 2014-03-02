@@ -33,14 +33,6 @@ func (q *Query) All() (ResultSet, error) {
 	return r, nil
 }
 
-func (q Query) JSON() string {
-	j, err := json.Marshal(q.q)
-	if err != nil {
-		log.Error("Failure JSONifying query err=%s query=%v", err.Error(), q.q)
-	}
-	return string(j)
-}
-
 func (q *Query) One() (uint64, *struct{}, error) {
 	r := make(map[uint64]struct{})
 	if err := tiedot.EvalQuery("all", q.col, &r); err != nil {
@@ -53,4 +45,26 @@ func (q *Query) One() (uint64, *struct{}, error) {
 	}
 	log.V(1).Info("Nothing found for query=", q.JSON())
 	return 0, nil, ErrNotFound
+}
+
+func (q *Query) Delete() (int, error) {
+	res, err := q.All()
+	if err != nil {
+		log.Error("Failure deleting query=%s err=%s", q.JSON(), err.Error())
+		return 0, err
+	}
+	for k, _ := range res {
+		q.col.Delete(k)
+		log.V(6).Info("Deleted id=%d")
+	}
+	log.V(5).Info("Deleted %d objects for query=%s", len(res), q.JSON())
+	return len(res), nil
+}
+
+func (q Query) JSON() string {
+	j, err := json.Marshal(q.q)
+	if err != nil {
+		log.Error("Failure JSONifying query err=%s query=%v", err.Error(), q.q)
+	}
+	return string(j)
 }

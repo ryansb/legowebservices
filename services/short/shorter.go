@@ -2,14 +2,14 @@ package short
 
 import (
 	"bytes"
-	"code.google.com/p/leveldb-go/leveldb"
-	"code.google.com/p/leveldb-go/leveldb/db"
 	"encoding/gob"
 	"encoding/json"
 	"flag"
 	"github.com/codegangsta/martini"
 	"github.com/ryansb/legowebservices/encoding/base62"
 	"github.com/ryansb/legowebservices/log"
+	"github.com/ryansb/legowebservices/persist/kv"
+	. "github.com/ryansb/legowebservices/util/m"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -18,7 +18,6 @@ import (
 )
 
 var counterKey = []byte("**global:count**")
-var writeOpt = &db.WriteOptions{Sync: true}
 
 type Shortened struct {
 	Original string
@@ -26,11 +25,19 @@ type Shortened struct {
 	HitCount int
 }
 
+func (s Shortened) ToM() M {
+	return M{
+		"Original": s.Original,
+		"Short":    s.Short,
+		"HitCount": s.HitCount,
+	}
+}
+
 var hits = make(chan string, 100)
 
 var mu = new(sync.Mutex)
 
-func incrCount(ldb *leveldb.DB) int64 {
+func incrCount(tde *kv.TiedotEngine) int64 {
 	mu.Lock()
 	defer mu.Unlock()
 	var count int64
@@ -49,7 +56,7 @@ func incrCount(ldb *leveldb.DB) int64 {
 		}
 	}
 	count += 1
-	err = ldb.Set(counterKey, []byte(strconv.Itoa(int(count))), writeOpt)
+	err = ldb.Set(counterKey, []byte(strconv.Itoa(int(count))))
 	if err != nil {
 		panic(err)
 	}
@@ -112,8 +119,9 @@ func decodeShortened(raw []byte) (*Shortened, error) {
 	return s, nil
 }
 
-func LongURL(short string, ldb *leveldb.DB) (*Shortened, error) {
-	b, err := ldb.Get([]byte(short), nil)
+func LongURL(short string, tde *kv.TiedotEngine) (*Shortened, error) {
+	// ignore the ID for now, we don't really need it
+	_, b, err := tde.Query("short.url").Equals(kv.Path{"Short"}, short).One()
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +129,7 @@ func LongURL(short string, ldb *leveldb.DB) (*Shortened, error) {
 }
 
 func saveShortened(s Shortened, ldb *leveldb.DB) error {
-	return ldb.Set([]byte(s.Short), encodeShortened(s), writeOpt)
+	return ldb.Set([]byte(s.Short), encodeShortened(s))
 }
 
 func countHits(ldb *leveldb.DB) {
@@ -145,7 +153,7 @@ func countHits(ldb *leveldb.DB) {
 		}
 		s.HitCount += 1
 
-		err = ldb.Set([]byte(key), encodeShortened(*s), writeOpt)
+		err = ldb.Set([]byte(key), encodeShortened(*s))
 		if err != nil {
 			log.Error("Failed to write hitkey err:" + err.Error())
 			continue
