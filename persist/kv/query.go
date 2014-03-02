@@ -1,6 +1,7 @@
 package kv
 
 import (
+	"encoding/json"
 	tiedot "github.com/HouzuoGuo/tiedot/db"
 	"github.com/ryansb/legowebservices/log"
 	. "github.com/ryansb/legowebservices/util/m"
@@ -32,6 +33,14 @@ func (q *Query) All() (ResultSet, error) {
 	return r, nil
 }
 
+func (q Query) JSON() string {
+	j, err := json.Marshal(q.q)
+	if err != nil {
+		log.Error("Failure JSONifying query err=%s query=%v", err.Error(), q.q)
+	}
+	return string(j)
+}
+
 func (q *Query) One() (uint64, *struct{}, error) {
 	r := make(map[uint64]struct{})
 	if err := tiedot.EvalQuery("all", q.col, &r); err != nil {
@@ -39,7 +48,9 @@ func (q *Query) One() (uint64, *struct{}, error) {
 		return 0, nil, err
 	}
 	for k, v := range r {
+		log.V(2).Info("Found id=%d val=%v for kv.Query.One()", k, v)
 		return k, &v, nil
 	}
+	log.V(1).Info("Nothing found for query=", q.JSON())
 	return 0, nil, ErrNotFound
 }
