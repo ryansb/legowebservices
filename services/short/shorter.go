@@ -35,7 +35,7 @@ type Counter struct {
 }
 
 func (c Counter) ToM() M {
-	return M{"Count": c.Count, "Name": "global"}
+	return M{"Count": c.Count}
 }
 
 var hits = make(chan string, 100)
@@ -46,10 +46,15 @@ func incrCount(tde *kv.TiedotEngine) int64 {
 	mu.Lock()
 	defer mu.Unlock()
 	counter := new(Counter)
-	id, err := tde.Query(counterCollection).Equals(kv.Path{"Name"}, "global").OneInto(counter)
+	id, err := tde.Query(counterCollection).Has(kv.Path{"Count"}).OneInto(counter)
 	if err == kv.ErrNotFound {
 		log.Warning("Counter not found, saving new one.")
-		tde.Insert(counterCollection, M{"Count": 0})
+		err = tde.Insert(counterCollection, Counter{Count: 1})
+		if err != nil {
+			log.Errorf("Error saving new counter err=%s", err.Error())
+		}
+		r, err := tde.All(counterCollection)
+		log.V(3).Infof("total of %d results=%v, err=%v", len(r), r, err)
 		return 0
 	}
 	if err != nil {

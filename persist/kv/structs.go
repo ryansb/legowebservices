@@ -32,12 +32,12 @@ func NewTiedotEngine(directory string, collections []string, dropIfExist bool) *
 				log.Info("Dropping collection %s due to dropIfExist option")
 				err = db.Drop(c)
 				log.FatalIfErr(err, "Failure dropping collection with name:%s err:", c)
-				err = db.Create(c, 3) // partition DB for use by up to 3 goroutines at a time
+				err = db.Create(c, 1) // partition DB for use by up to 1 goroutines at a time
 				log.FatalIfErr(err, "Failure creating collection with name:%s err:", c)
 			}
 		} else {
 			log.V(4).Info("Creating collection %s")
-			err = db.Create(c, 3) // partition DB for use by up to 3 goroutines at a time
+			err = db.Create(c, 1) // partition DB for use by up to 1 goroutines at a time
 			log.FatalIfErr(err, "Failure creating collection with name:%s err:", c)
 		}
 	}

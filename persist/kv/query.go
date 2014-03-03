@@ -8,26 +8,33 @@ import (
 )
 
 func (q *Query) Equals(p Path, v interface{}) *Query {
-	log.V(6).Info("QueryBuilder: Path=%v Term=%v Value=%v", p, "Equals", v)
+	log.V(6).Infof("QueryBuilder: Path=%v Term=%v Value=%v", p, "Equals", v)
 	q.q = append(q.q, M{"in": p, "eq": v})
 	return q
 }
 
 func (q *Query) Between(p Path, start, end int64) *Query {
-	log.V(6).Info("QueryBuilder: Path=%v Between %d and %d", p, start, end)
+	log.V(6).Infof("QueryBuilder: Path=%v Between %d and %d", p, start, end)
 	q.q = append(q.q, M{"in": p, "int from": start, "int to": end})
 	return q
 }
+
 func (q *Query) Regexp(p Path, expr string) *Query {
-	log.V(6).Info("QueryBuilder: Path=%v Regexp=%s", p, expr)
+	log.V(6).Infof("QueryBuilder: Path=%v Regexp=%s", p, expr)
 	q.q = append(q.q, M{"in": p, "re": expr})
+	return q
+}
+
+func (q *Query) Has(p Path) *Query {
+	log.V(6).Infof("QueryBuilder: HasPath=%v", p)
+	q.q = append(q.q, M{"has": p})
 	return q
 }
 
 func (q *Query) All() (ResultSet, error) {
 	r := make(map[uint64]struct{})
 	if err := tiedot.EvalQuery(q.q, q.col, &r); err != nil {
-		log.Error("Error executing kv.Query.All() query=%s err=%s", q.JSON(), err.Error())
+		log.Errorf("Error executing kv.Query.All() query=%s err=%s", q.JSON(), err.Error())
 		return nil, err
 	}
 	return r, nil
@@ -40,14 +47,19 @@ func (q *Query) OneInto(out interface{}) (uint64, error) {
 		return 0, err
 	}
 	for k, v := range r {
+		log.V(2).Infof("Found id=%d kv.Query.OneInto()", k)
 		if _, err := q.col.Read(k, out); err != nil {
 			log.Errorf("Failure reading id=%d err=%s", k, err.Error())
 			return 0, err
 		}
-		log.V(2).Infof("Found id=%d val=%v for kv.Query.One()", k, v)
+		log.V(2).Infof("Found id=%d val=%v for kv.Query.OneInto()", k, v)
 		return k, nil
 	}
-	log.V(1).Info("Nothing found for query=", q.JSON())
+	log.V(1).Infof("Nothing found for query=%s", q.JSON())
+	q.col.ForAll(func(id uint64, doc map[string]interface{}) bool {
+		log.V(1).Infof("id=%d val=%v", id, doc)
+		return false
+	})
 	return 0, ErrNotFound
 }
 
@@ -61,7 +73,7 @@ func (q *Query) One() (uint64, *struct{}, error) {
 		log.V(2).Infof("Found id=%d val=%v for kv.Query.One()", k, v)
 		return k, &v, nil
 	}
-	log.V(1).Info("Nothing found for query=", q.JSON())
+	log.V(1).Infof("Nothing found for query=%v", q.JSON())
 	return 0, nil, ErrNotFound
 }
 

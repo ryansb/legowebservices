@@ -9,14 +9,16 @@ import (
 
 var ErrNotFound = errors.New("legowebservices/persist/kv: Error not found")
 
-func (t *TiedotEngine) AddIndex(collection string, path []string) error {
+func (t *TiedotEngine) AddIndex(collection string, path Path) {
 	c := t.tiedot.Use(collection)
-	if _, ok := c.SecIndexes[strings.Join(path, tiedot.INDEX_PATH_SEP)]; ok {
-		log.Info("Index on path:%v already exists for collection:%s", path, collection)
-		return nil
+	tdPath := strings.Join(path, tiedot.INDEX_PATH_SEP)
+	if _, ok := c.SecIndexes[tdPath]; ok {
+		log.Infof("Index on path:%v already exists for collection:%s", tdPath, collection)
+		return
 	}
-	log.V(3).Info("Adding index on path:%v to collection:%s", path, collection)
-	return c.Index(path)
+	log.V(3).Infof("Adding index on path:%v to collection:%s", tdPath, collection)
+	err := c.Index(path)
+	log.FatalIfErr(err, "Failure creating index on collection:"+collection)
 }
 
 func (t *TiedotEngine) Collection(collection string) *tiedot.Col {
@@ -32,16 +34,22 @@ func (t *TiedotEngine) Query(collectionName string) *Query {
 }
 
 func (t *TiedotEngine) Insert(collectionName string, item Insertable) error {
+	if len(item.ToM()) == 0 {
+		log.Fatalf("Failure: No data in item=%v", item.ToM())
+	} else {
+		log.V(3).Infof("data in item=%v", item.ToM())
+	}
 	if id, err := t.tiedot.Use(collectionName).Insert(item.ToM()); err != nil {
-		log.Error("Failure inserting item=%s err=%s", item.ToM().JSON(), err.Error())
+		log.Errorf("Failure inserting item=%v err=%s", item.ToM(), err.Error())
 		return err
 	} else {
-		log.V(6).Infof("Added item with ID=%d, item=%s", id, item.ToM().JSON())
+		log.V(6).Infof("Added item with ID=%d, item=%v", id, item.ToM())
 		return nil
 	}
 }
 
 func (t *TiedotEngine) Update(collectionName string, id uint64, item Insertable) error {
+	log.Infof("%v", item.ToM())
 	if err := t.tiedot.Use(collectionName).Update(id, item.ToM()); err != nil {
 		log.Error("Failure updating item=%s err=%s", item.ToM().JSON(), err.Error())
 		return err
