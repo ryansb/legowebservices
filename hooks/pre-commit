@@ -13,9 +13,9 @@
 gofiles=$(git diff --cached --name-only --diff-filter=ACM | grep '.go$')
 [ -z "$gofiles" ] && exit 0
 
-go build -a || (echo "BUILD FAILURE" ; exit 1)
+go build -a ||  exit 1
 
-go test ./... || (echo "TEST FAILURE" ; exit 1)
+go test ./... ||  exit 1
 
 unformatted=$(gofmt -l $gofiles)
 [ -z "$unformatted" ] && exit 0
