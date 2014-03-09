@@ -1,5 +1,7 @@
 package main
 
+// See LICENSE for licensing info
+
 import (
 	"flag"
 	"github.com/codegangsta/martini"
