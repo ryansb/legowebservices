@@ -568,7 +568,7 @@ func (l *loggingT) header(s severity) *buffer {
 	buf.tmp[14] = ':'
 	buf.twoDigits(15, second)
 	buf.tmp[17] = '.'
-	buf.nDigits(4, 18, now.Nanosecond()/1000)
+	buf.nDigits(4, 18, now.Nanosecond()/100000)
 	buf.tmp[22] = ' '
 	buf.Write(buf.tmp[:23])
 	buf.WriteString(file)
