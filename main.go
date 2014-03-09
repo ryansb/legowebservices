@@ -25,7 +25,7 @@ func main() {
 	m.Use(martini.Recovery())
 	r := martini.NewRouter()
 
-	tde := kv.NewTiedotEngine("./tiedotdb", []string{"short.url", "short.counter"}, false)
+	tde := kv.NewTiedotEngine("./tiedotdb", []string{"short.url", "short.counter"}, kv.KeepIfExist)
 	tde.AddIndex("short.url", []string{"Short"})
 	tde.AddIndex("short.counter", []string{"Count"})
 
