@@ -35,9 +35,11 @@ func (t *TiedotEngine) Query(collectionName string) *Query {
 
 func (t *TiedotEngine) Insert(collectionName string, item Insertable) error {
 	if len(item.ToM()) == 0 {
-		log.Fatalf("Failure: No data in item=%v", item.ToM())
+		log.Warningf("Failure: No data in item=%v", item.ToM())
+		return nil
 	} else {
-		log.V(3).Infof("data in item=%v", item.ToM())
+		log.V(3).Infof("Insertion into collection=%s item=%v",
+			collectionName, item.ToM())
 	}
 	if id, err := t.tiedot.Use(collectionName).Insert(item.ToM()); err != nil {
 		log.Errorf("Failure inserting item=%v err=%s", item.ToM(), err.Error())

@@ -21,14 +21,21 @@ type TiedotEngine struct {
 	tiedot *tiedot.DB
 }
 
+type DropPreference uint8
+
+const (
+	DropIfExist DropPreference = iota
+	KeepIfExist
+)
+
 // Create a new LevelDBEngine with the given file and options
-func NewTiedotEngine(directory string, collections []string, dropIfExist bool) *TiedotEngine {
+func NewTiedotEngine(directory string, collections []string, dropPref DropPreference) *TiedotEngine {
 	db, err := tiedot.OpenDB(directory)
 	log.FatalIfErr(err, "Failure opening tiedot basedir err:")
 	for _, c := range collections {
 		if _, ok := db.StrCol[c]; ok {
 			log.V(4).Info("Collection %s already exists")
-			if dropIfExist {
+			if dropPref == DropIfExist {
 				log.Info("Dropping collection %s due to dropIfExist option")
 				err = db.Drop(c)
 				log.FatalIfErr(err, "Failure dropping collection with name:%s err:", c)
