@@ -31,13 +31,21 @@ func (q *Query) Has(p Path) *Query {
 	return q
 }
 
-func (q *Query) All() (ResultSet, error) {
-	r := make(map[uint64]struct{})
-	if err := tiedot.EvalQuery(q.q, q.col, &r); err != nil {
+func (q *Query) All() (res ResultSet, err error) {
+	r, err := q.eval()
+	if err != nil {
 		log.Errorf("Error executing kv.Query.All() query=%s err=%s", q.JSON(), err.Error())
-		return nil, err
+		return
 	}
-	return r, nil
+	res = make(ResultSet)
+	for id, _ := range r {
+		v, err := q.read(id)
+		if err != nil {
+			log.Errorf("Failure reading id=%d err=%v", id, err)
+		}
+		res[id] = v
+	}
+	return
 }
 
 func (q *Query) OneInto(out interface{}) (uint64, error) {
