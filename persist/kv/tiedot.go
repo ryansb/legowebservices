@@ -8,6 +8,7 @@ import (
 )
 
 var ErrNotFound = errors.New("legowebservices/persist/kv: Error not found")
+var ErrReadPreference = errors.New("legowebservices/persist/kv: Readpreference not set")
 
 func (t *TiedotEngine) AddIndex(collection string, path Path) {
 	c := t.tiedot.Use(collection)
@@ -60,7 +61,7 @@ func (t *TiedotEngine) Update(collectionName string, id uint64, item Insertable)
 	}
 }
 
-func (t *TiedotEngine) All(collectionName string) (ResultSet, error) {
+func (t *TiedotEngine) All(collectionName string) (map[uint64]struct{}, error) {
 	r := make(map[uint64]struct{})
 	if err := tiedot.EvalQuery("all", t.tiedot.Use(collectionName), &r); err != nil {
 		log.Error("Error executing TiedotEngine.All() err=%s", err.Error())

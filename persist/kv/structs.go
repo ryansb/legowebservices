@@ -3,23 +3,8 @@ package kv
 import (
 	tiedot "github.com/HouzuoGuo/tiedot/db"
 	"github.com/ryansb/legowebservices/log"
-	. "github.com/ryansb/legowebservices/util/m"
+	"github.com/ryansb/legowebservices/util/m"
 )
-
-type Query struct {
-	q   []M
-	col *tiedot.Col
-}
-
-type Path []string
-
-type ResultSet map[uint64]struct{}
-
-// Implemented the KVEngine interface
-// This one is just for a local leveldb database
-type TiedotEngine struct {
-	tiedot *tiedot.DB
-}
 
 type DropPreference uint8
 
@@ -27,6 +12,29 @@ const (
 	DropIfExist DropPreference = iota
 	KeepIfExist
 )
+
+type LockPreference uint8
+
+const (
+	MustLock LockPreference = iota
+	NoLock
+)
+
+type Query struct {
+	q        []m.M
+	col      *tiedot.Col
+	ReadLock LockPreference
+}
+
+type Path []string
+type ResultSet map[uint64]interface{}
+type RawResultSet map[uint64]struct{}
+
+// Implemented the KVEngine interface
+// This one is just for a local leveldb database
+type TiedotEngine struct {
+	tiedot *tiedot.DB
+}
 
 // Create a new LevelDBEngine with the given file and options
 func NewTiedotEngine(directory string, collections []string, dropPref DropPreference) *TiedotEngine {

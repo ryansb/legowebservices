@@ -49,8 +49,8 @@ func (q *Query) All() (res ResultSet, err error) {
 }
 
 func (q *Query) OneInto(out interface{}) (uint64, error) {
-	r := make(map[uint64]struct{})
-	if err := tiedot.EvalQuery(q.q, q.col, &r); err != nil {
+	r, err := q.eval()
+	if err != nil {
 		log.Errorf("Error executing kv.Query.One() err=%s", err.Error())
 		return 0, err
 	}
@@ -71,28 +71,32 @@ func (q *Query) OneInto(out interface{}) (uint64, error) {
 	return 0, ErrNotFound
 }
 
-func (q *Query) One() (uint64, *struct{}, error) {
-	r := make(map[uint64]struct{})
-	if err := tiedot.EvalQuery(q.q, q.col, &r); err != nil {
+func (q *Query) One() (uint64, interface{}, error) {
+	r, err := q.eval()
+	if err != nil {
 		log.Errorf("Error executing kv.Query.One() err=%s", err.Error())
 		return 0, nil, err
 	}
-	for k, v := range r {
-		log.V(2).Infof("Found id=%d val=%v for kv.Query.One()", k, v)
-		return k, &v, nil
+	for id, _ := range r {
+		v, err := q.read(id)
+		if err != nil {
+			log.Errorf("Failure reading id=%d err=%v", id, err)
+		}
+		log.V(2).Infof("Found id=%d val=%v for kv.Query.One()", id, v)
+		return id, v, nil
 	}
 	log.V(1).Infof("Nothing found for query=%v", q.JSON())
 	return 0, nil, ErrNotFound
 }
 
 func (q *Query) Delete() (int, error) {
-	res, err := q.All()
+	res, err := q.eval()
 	if err != nil {
-		log.Error("Failure deleting query=%s err=%s", q.JSON(), err.Error())
-		return 0, err
+		log.Errorf("Error executing kv.Query.Delete() query=%s err=%s", q.JSON(), err.Error())
+		return -1, err
 	}
-	for k, _ := range res {
-		q.col.Delete(k)
+	for id, _ := range res {
+		q.col.Delete(id)
 		log.V(6).Info("Deleted id=%d")
 	}
 	log.V(5).Info("Deleted %d objects for query=%s", len(res), q.JSON())
@@ -105,4 +109,36 @@ func (q Query) JSON() string {
 		log.Error("Failure JSONifying query err=%s query=%v", err.Error(), q.q)
 	}
 	return string(j)
+}
+
+func (q *Query) read(id uint64) (interface{}, error) {
+	v := new(interface{})
+	if q.ReadLock == NoLock {
+		q.col.ReadNoLock(id, v)
+	} else if q.ReadLock == MustLock {
+		q.col.Read(id, v)
+	} else {
+		log.Errorf("Read preference (NoLock or MustLock) not set for query=%s", q.JSON())
+		return nil, ErrReadPreference
+	}
+	return *v, nil
+}
+
+func (q *Query) eval() (RawResultSet, error) {
+	query := prepQuery(q.q)
+	res := make(map[uint64]struct{})
+	err := tiedot.EvalQuery(query, q.col, &res)
+	return res, err
+}
+
+func prepQuery(q interface{}) (query interface{}) {
+	j, err := json.Marshal(q)
+	if err != nil {
+		log.Errorf("Failure serializing query err=%v", err)
+	}
+	err = json.Unmarshal(j, &query)
+	if err != nil {
+		log.Errorf("Failure deserializing query err=%v", err)
+	}
+	return
 }

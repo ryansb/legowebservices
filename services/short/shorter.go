@@ -141,7 +141,7 @@ func encodeShortened(s Shortened) []byte {
 	return buf.Bytes()
 }
 
-func decodeShortened(v struct{}) (*Shortened, error) {
+func decodeShortened(v interface{}) (*Shortened, error) {
 	o, _ := json.Marshal(v)
 	s := new(Shortened)
 	err := json.Unmarshal(o, s)
@@ -157,7 +157,7 @@ func LongURL(short string, tde *kv.TiedotEngine) (*Shortened, error) {
 	if err != nil {
 		return nil, err
 	}
-	return decodeShortened(*b)
+	return decodeShortened(b)
 }
 
 func saveShortened(s Shortened, tde *kv.TiedotEngine) error {
