@@ -34,27 +34,27 @@ func (t *TiedotEngine) Query(collectionName string) *Query {
 	return &Query{col: t.tiedot.Use(collectionName)}
 }
 
-func (t *TiedotEngine) Insert(collectionName string, item Insertable) error {
+func (t *TiedotEngine) Insert(collectionName string, item Insertable) (uint64, error) {
 	if len(item.ToM()) == 0 {
 		log.Warningf("Failure: No data in item=%v", item.ToM())
-		return nil
+		return 0, nil
 	} else {
 		log.V(3).Infof("Insertion into collection=%s item=%v",
 			collectionName, item.ToM())
 	}
-	if id, err := t.tiedot.Use(collectionName).Insert(item.ToM()); err != nil {
+	id, err := t.tiedot.Use(collectionName).Insert(item.ToM())
+	if err != nil {
 		log.Errorf("Failure inserting item=%v err=%s", item.ToM(), err.Error())
-		return err
-	} else {
-		log.V(6).Infof("Added item with ID=%d, item=%v", id, item.ToM())
-		return nil
+		return 0, err
 	}
+	log.V(6).Infof("Added item with ID=%d, item=%v", id, item.ToM())
+	return id, nil
 }
 
 func (t *TiedotEngine) Update(collectionName string, id uint64, item Insertable) error {
-	log.Infof("%v", item.ToM())
+	log.V(3).Infof("Updating with data: %v", item.ToM())
 	if err := t.tiedot.Use(collectionName).Update(id, item.ToM()); err != nil {
-		log.Error("Failure updating item=%s err=%s", item.ToM().JSON(), err.Error())
+		log.Errorf("Failure updating item=%s err=%s", item.ToM().JSON(), err.Error())
 		return err
 	} else {
 		return nil

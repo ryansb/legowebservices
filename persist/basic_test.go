@@ -32,7 +32,7 @@ func (s *TS) TestNewCollection(c *C) {
 	engine := getEngine()
 	defer engine.DB().Close()
 
-	err := engine.Insert("fake", M{"name": "Bob", "age": 42})
+	_, err := engine.Insert("fake", M{"name": "Bob", "age": 42})
 	c.Check(err, Equals, nil)
 }
 
@@ -50,7 +50,7 @@ func (s *TS) TestSimpleGet(c *C) {
 	defer engine.DB().Close()
 	engine.AddIndex("fake", kv.Path{"Name"})
 
-	err := engine.Insert("fake", person{Name: "Bob", Age: 42})
+	_, err := engine.Insert("fake", person{Name: "Bob", Age: 42})
 	c.Assert(err, Equals, nil)
 
 	res, err := engine.Query("fake").Equals(kv.Path{"Name"}, "Bob").All()
