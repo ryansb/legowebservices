@@ -46,19 +46,20 @@ func (t *TiedotEngine) Insert(collectionName string, item Insertable) (uint64, e
 	if err != nil {
 		log.Errorf("Failure inserting item=%v err=%s", item.ToM(), err.Error())
 		return 0, err
+	} else {
+		log.V(6).Infof("Added item with ID=%d, item=%v", id, item.ToM())
+		return id, nil
 	}
-	log.V(6).Infof("Added item with ID=%d, item=%v", id, item.ToM())
-	return id, nil
 }
 
 func (t *TiedotEngine) Update(collectionName string, id uint64, item Insertable) error {
-	log.V(3).Infof("Updating with data: %v", item.ToM())
-	if err := t.tiedot.Use(collectionName).Update(id, item.ToM()); err != nil {
+	err := t.tiedot.Use(collectionName).Update(id, item.ToM())
+	if err != nil {
 		log.Errorf("Failure updating item=%s err=%s", item.ToM().JSON(), err.Error())
-		return err
 	} else {
-		return nil
+		log.V(3).Infof("Updating with data: %v", item.ToM())
 	}
+	return err
 }
 
 func (t *TiedotEngine) All(collectionName string) (map[uint64]struct{}, error) {
