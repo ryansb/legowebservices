@@ -49,7 +49,7 @@ func incrCount(tde *kv.TiedotEngine) int64 {
 	id, err := tde.Query(counterCollection).Has(kv.Path{"Count"}).OneInto(counter)
 	if err == kv.ErrNotFound {
 		log.Warning("Counter not found, saving new one.")
-		err = tde.Insert(counterCollection, Counter{Count: 1})
+		_, err = tde.Insert(counterCollection, Counter{Count: 1})
 		if err != nil {
 			log.Errorf("Error saving new counter err=%s", err.Error())
 		}
@@ -161,7 +161,8 @@ func LongURL(short string, tde *kv.TiedotEngine) (*Shortened, error) {
 }
 
 func saveShortened(s Shortened, tde *kv.TiedotEngine) error {
-	return tde.Insert(urlCollection, s)
+	_, err := tde.Insert(urlCollection, s)
+	return err
 }
 
 func countHits(tde *kv.TiedotEngine) {
