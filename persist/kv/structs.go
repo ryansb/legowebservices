@@ -31,7 +31,6 @@ type ResultSet map[uint64]interface{}
 type RawResultSet map[uint64]struct{}
 
 // Implemented the KVEngine interface
-// This one is just for a local leveldb database
 type TiedotEngine struct {
 	tiedot *tiedot.DB
 }
