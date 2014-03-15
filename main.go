@@ -25,10 +25,13 @@ func main() {
 	m.Use(martini.Recovery())
 	r := martini.NewRouter()
 
-	tde := kv.NewTiedotEngine("./tiedotdb", []string{"short.url", "short.counter"}, kv.KeepIfExist)
+	collections := make([]kv.CollectionParams, 0)
+	if *useShort {
+		collections = append(collections, short.Collections...)
+	}
+
+	tde := kv.NewTiedotEngine("./tiedotdb", collections, kv.KeepIfExist)
 	defer tde.Close()
-	tde.AddIndex("short.url", kv.Path{"Short"})
-	tde.AddIndex("short.counter", kv.Path{"Count"})
 
 	if *useShort {
 		log.Info("Starting LWS.short")
@@ -40,6 +43,7 @@ func main() {
 	m.Action(r.Handle)
 	http.ListenAndServe(*port, m)
 }
+
 func stripper(p string) func(http.ResponseWriter, *http.Request) {
 	re := regexp.MustCompile("^" + p)
 	return func(w http.ResponseWriter, r *http.Request) {

@@ -12,6 +12,19 @@ import (
 var urlCollection = "short.url"
 var counterCollection = "short.counter"
 
+var Collections = []kv.CollectionParams{
+	kv.CollectionParams{
+		Name:       counterCollection,
+		Partitions: 1,
+		Indices:    []kv.Path{kv.Path{"Count"}},
+	},
+	kv.CollectionParams{
+		Name:       urlCollection,
+		Partitions: 1,
+		Indices:    []kv.Path{kv.Path{"Short"}},
+	},
+}
+
 func root(w http.ResponseWriter, r *http.Request) (int, string) {
 	log.V(3).Info("Served Homepage")
 	return 200, ("Welcome to legowebservices.short URL shortener service.\n" +

@@ -25,7 +25,7 @@ func (s *TS) TearDownTest(c *C) {
 }
 
 func getEngine() *kv.TiedotEngine {
-	return kv.NewTiedotEngine("./tmp", []string{"fake"}, kv.DropIfExist)
+	return kv.NewTiedotEngine("./tmp", []kv.CollectionParams{kv.CollectionParams{Name: "fake"}}, kv.DropIfExist)
 }
 
 func (s *TS) TestNewCollection(c *C) {

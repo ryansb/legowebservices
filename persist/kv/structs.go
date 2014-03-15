@@ -40,27 +40,37 @@ func (tde *TiedotEngine) Close() {
 }
 
 // Create a new LevelDBEngine with the given file and options
-func NewTiedotEngine(directory string, collections []string, dropPref DropPreference) *TiedotEngine {
+func NewTiedotEngine(directory string, collections []CollectionParams, dropPref DropPreference) *TiedotEngine {
 	db, err := tiedot.OpenDB(directory)
 	log.FatalIfErr(err, "Failure opening tiedot basedir err:")
 	for _, c := range collections {
-		if _, ok := db.StrCol[c]; ok {
+		if c.Partitions < 1 {
+			c.Partitions = 1
+		}
+		if _, ok := db.StrCol[c.Name]; ok {
 			log.V(4).Info("Collection %s already exists")
 			if dropPref == DropIfExist {
 				log.Info("Dropping collection %s due to dropIfExist option")
-				err = db.Drop(c)
+				err = db.Drop(c.Name)
 				log.FatalIfErr(err, "Failure dropping collection with name:%s err:", c)
-				err = db.Create(c, 1) // partition DB for use by up to 1 goroutines at a time
+				err = db.Create(c.Name, c.Partitions) // partition DB for use by up to 1 goroutines at a time
 				log.FatalIfErr(err, "Failure creating collection with name:%s err:", c)
 			}
 		} else {
 			log.V(4).Info("Creating collection %s")
-			err = db.Create(c, 1) // partition DB for use by up to 1 goroutines at a time
+			err = db.Create(c.Name, c.Partitions) // partition DB for use by up to 1 goroutines at a time
 			log.FatalIfErr(err, "Failure creating collection with name:%s err:", c)
 		}
 	}
 	tde := &TiedotEngine{
 		tiedot: db,
 	}
+
+	for _, c := range collections {
+		for _, index := range c.Indices {
+			tde.AddIndex(c.Name, index)
+		}
+	}
+
 	return tde
 }
