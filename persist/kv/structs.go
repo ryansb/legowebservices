@@ -35,6 +35,10 @@ type TiedotEngine struct {
 	tiedot *tiedot.DB
 }
 
+func (tde *TiedotEngine) Close() {
+	tde.tiedot.Close()
+}
+
 // Create a new LevelDBEngine with the given file and options
 func NewTiedotEngine(directory string, collections []string, dropPref DropPreference) *TiedotEngine {
 	db, err := tiedot.OpenDB(directory)
