@@ -5,26 +5,39 @@ import (
 	"testing"
 )
 
-func TestEncodeIntSmall(t *testing.T) {
-	var v string
-	v = EncodeInt(0)
-	if v != "A" {
+func TestReciprocal(t *testing.T) {
+	for _, start := range []int64{0, 1, 99, 999999999} {
+		end := DecodeString(EncodeInt(start))
+		if end != start {
+			fmt.Printf("Start=%d End=%d\n", start, end)
+			t.Fail()
+		}
+	}
+}
+
+func BenchmarkB62Encode(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		EncodeInt(int64(i))
+	}
+}
+
+func BenchmarkB62(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		DecodeString(EncodeInt(int64(i)))
+	}
+}
+
+func TestEncode(t *testing.T) {
+	if "0" != EncodeInt(0) {
 		t.Fail()
 	}
 }
 
-func TestMANYNumbers(t *testing.T) {
-	var out string
-	out = EncodeInt(int64(3843))
-	if out != "89" {
+func TestDecode(t *testing.T) {
+	if 0 != DecodeString("0") {
 		t.Fail()
 	}
-}
-
-func TestEncodeLargeNumber(t *testing.T) {
-	v := EncodeInt(int64(99))
-	if v != "Al" {
-		fmt.Println("This is the:", v)
+	if 99 != DecodeString("1B") {
 		t.Fail()
 	}
 }

@@ -1,13 +1,16 @@
 package short
 
 import (
-	"code.google.com/p/leveldb-go/leveldb"
-	"code.google.com/p/leveldb-go/leveldb/db"
 	"github.com/codegangsta/martini"
+	"github.com/ryansb/legowebservices/encoding/base62"
 	"github.com/ryansb/legowebservices/log"
+	"github.com/ryansb/legowebservices/persist/kv"
 	. "github.com/ryansb/legowebservices/util/m"
 	"net/http"
 )
+
+var urlCollection = "short.url"
+var counterCollection = "short.counter"
 
 func root(w http.ResponseWriter, r *http.Request) (int, string) {
 	log.V(3).Info("Served Homepage")
@@ -15,10 +18,10 @@ func root(w http.ResponseWriter, r *http.Request) (int, string) {
 		"POST to this URL with JSON matching {\"url\":\"some.long.url.com\"}\n")
 }
 
-func retrieve(w http.ResponseWriter, r *http.Request, ldb *leveldb.DB, params martini.Params) {
+func retrieve(w http.ResponseWriter, r *http.Request, tde *kv.TiedotEngine, params martini.Params) {
 	short := params["short"]
-	domain, err := LongURL(short, ldb)
-	if err == db.ErrNotFound {
+	domain, err := LongURL(short, tde)
+	if err == kv.ErrNotFound {
 		log.V(1).Info("Path /" + short + " not found")
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -36,13 +39,14 @@ func retrieve(w http.ResponseWriter, r *http.Request, ldb *leveldb.DB, params ma
 	}
 }
 
-func remove(w http.ResponseWriter, r *http.Request, ldb *leveldb.DB, params martini.Params) (int, []byte) {
+func remove(w http.ResponseWriter, r *http.Request, tde *kv.TiedotEngine, params martini.Params) (int, []byte) {
 	short := params["short"]
-	err := ldb.Delete([]byte(short), writeOpt)
+	_, err := tde.Query(urlCollection).Equals(kv.Path{"Short"}, base62.DecodeString(short)).Delete()
 	if err != nil {
 		log.Error("Failure deleting URL /" + short + " err:" + err.Error())
 		return 500, M{
-			"error": err.Error(),
+			"message": "Could not delete URL /" + short,
+			"error":   err.Error(),
 		}.JSON()
 	}
 	log.V(1).Info("Deleted URL /" + short)
