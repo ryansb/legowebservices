@@ -54,20 +54,15 @@ func (q *Query) OneInto(out interface{}) (uint64, error) {
 		log.Errorf("Error executing kv.Query.One() err=%s", err.Error())
 		return 0, err
 	}
-	for k, v := range r {
+	for k, _ := range r {
 		log.V(2).Infof("Found id=%d kv.Query.OneInto()", k)
 		if _, err := q.col.Read(k, out); err != nil {
 			log.Errorf("Failure reading id=%d err=%s", k, err.Error())
 			return 0, err
 		}
-		log.V(2).Infof("Found id=%d val=%v for kv.Query.OneInto()", k, v)
 		return k, nil
 	}
 	log.V(1).Infof("Nothing found for query=%s", q.JSON())
-	q.col.ForAll(func(id uint64, doc map[string]interface{}) bool {
-		log.V(1).Infof("id=%d val=%v", id, doc)
-		return false
-	})
 	return 0, ErrNotFound
 }
 
@@ -81,6 +76,7 @@ func (q *Query) One() (uint64, interface{}, error) {
 		v, err := q.read(id)
 		if err != nil {
 			log.Errorf("Failure reading id=%d err=%v", id, err)
+			return id, nil, err
 		}
 		log.V(2).Infof("Found id=%d val=%v for kv.Query.One()", id, v)
 		return id, v, nil

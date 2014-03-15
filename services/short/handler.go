@@ -9,8 +9,8 @@ import (
 	"net/http"
 )
 
-var counterCollection = "short.counter"
 var urlCollection = "short.url"
+var counterCollection = "short.counter"
 
 func root(w http.ResponseWriter, r *http.Request) (int, string) {
 	log.V(3).Info("Served Homepage")
@@ -45,7 +45,8 @@ func remove(w http.ResponseWriter, r *http.Request, tde *kv.TiedotEngine, params
 	if err != nil {
 		log.Error("Failure deleting URL /" + short + " err:" + err.Error())
 		return 500, M{
-			"error": err.Error(),
+			"message": "Could not delete URL /" + short,
+			"error":   err.Error(),
 		}.JSON()
 	}
 	log.V(1).Info("Deleted URL /" + short)

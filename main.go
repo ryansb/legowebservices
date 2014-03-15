@@ -26,8 +26,8 @@ func main() {
 	r := martini.NewRouter()
 
 	tde := kv.NewTiedotEngine("./tiedotdb", []string{"short.url", "short.counter"}, kv.KeepIfExist)
-	tde.AddIndex("short.url", []string{"Short"})
-	tde.AddIndex("short.counter", []string{"Count"})
+	tde.AddIndex("short.url", kv.Path{"Short"})
+	tde.AddIndex("short.counter", kv.Path{"Count"})
 
 	if *useShort {
 		log.Info("Starting LWS.short")

@@ -55,7 +55,7 @@ func incrCount(tde *kv.TiedotEngine) int64 {
 		}
 		r, err := tde.All(counterCollection)
 		log.V(3).Infof("total of %d results=%v, err=%v", len(r), r, err)
-		return 0
+		return 1
 	}
 	if err != nil {
 		log.Error("Failure getting counter err:" + err.Error())
@@ -73,8 +73,8 @@ func incrCount(tde *kv.TiedotEngine) int64 {
 func incrHits(tde *kv.TiedotEngine, key string) uint64 {
 	mu.Lock()
 	defer mu.Unlock()
-	var short Shortened
-	id, err := tde.Query(counterCollection).Equals(
+	short := new(Shortened)
+	id, err := tde.Query(urlCollection).Equals(
 		kv.Path{"Short"},
 		base62.DecodeString(key),
 	).OneInto(short)
@@ -82,7 +82,7 @@ func incrHits(tde *kv.TiedotEngine, key string) uint64 {
 		log.Warningf("Short URL %s not found", key)
 		return 0
 	} else if err != nil {
-		log.Errorf("Failure getting shortened URL key=%s err:", key, err.Error())
+		log.Errorf("Failure getting shortened URL key=%s err:%v", key, err)
 		return 0
 	}
 
@@ -153,11 +153,13 @@ func decodeShortened(v interface{}) (*Shortened, error) {
 
 func LongURL(short string, tde *kv.TiedotEngine) (*Shortened, error) {
 	// ignore the ID for now, we don't really need it
-	_, b, err := tde.Query("short.url").Equals(kv.Path{"Short"}, short).One()
+	out := new(Shortened)
+	_, err := tde.Query("short.url").Equals(kv.Path{"Short"}, base62.DecodeString(short)).OneInto(out)
+	log.Infof("Read one into %+v error:%v", out, err)
 	if err != nil {
 		return nil, err
 	}
-	return decodeShortened(b)
+	return out, nil
 }
 
 func saveShortened(s Shortened, tde *kv.TiedotEngine) error {
@@ -170,7 +172,7 @@ func countHits(tde *kv.TiedotEngine) {
 	for {
 		key = <-hits
 		newHitCount := incrHits(tde, key)
-		log.V(3).Info("[HIT]: key=%s count=%d", key, newHitCount)
+		log.V(3).Infof("[HIT]: key=%s count=%d", key, newHitCount)
 	}
 }
 
